@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+
+    <string name="app_name">lesson6</string>
+    <string name="hello_world">Hello world!</string>
+    <string name="action_settings">Settings</string>
+    <string name="date_format">EEE, dd MMM yyyy HH:mm:ss Z</string>
+    <string name="correct_url">URL isn\'t correct</string>
+    <string name="cannot_open">We can\'t open this xml. Maybe URL isn\'t correct</string>
+    <string name="cannot_parse">We can\'t parse this rss</string>
+    <string name="cannot_parse_date">Date format of this rss isn\'t supported. News wouldn\'t be sorted by date</string>
+    <string name="waiting">Loading… Please wait</string>
+    <string name="no_internet_connection">No Internet connection</string>
+    <string name="rss_item_url_error">Link to this news isn\'t correct or doesn\'t exist</string>
+    <string name="bbc_feed">http://feeds.bbci.co.uk/news/rss.xml</string>
+
+
+
+</resources>
