@@ -40,14 +40,14 @@ import javax.xml.parsers.SAXParser;
 import javax.xml.parsers.SAXParserFactory;
 
 
-public class MyActivity extends ListActivity {
+public class MainActivity extends ListActivity {
     EditText input;
     SimpleDateFormat format;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        setContentView(R.layout.activity_my);
+        setContentView(R.layout.activity_main);
 
         format = new SimpleDateFormat(getResources().getString(R.string.date_format), Locale.ENGLISH);
         input = (EditText) findViewById(R.id.editText1);
@@ -190,7 +190,7 @@ public class MyActivity extends ListActivity {
                             e.printStackTrace();
                         }
                         if (rssItemStringURL != null && rssItemURL != null) {
-                            Intent intent = new Intent(MyActivity.this, WebViewActivity.class);
+                            Intent intent = new Intent(MainActivity.this, WebViewActivity.class);
                             intent.putExtra("RSSItemURL", rssItemStringURL);
                             startActivity(intent);
                         } else {

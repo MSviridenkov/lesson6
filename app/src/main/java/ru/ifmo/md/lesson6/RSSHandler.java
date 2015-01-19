@@ -35,16 +35,12 @@ public class RSSHandler extends DefaultHandler {
                 rssItems.add(rssItem);
                 rssItem = null;
             } else if (localName.equalsIgnoreCase("title")) {
-                //Log.i("TITLE:", content);
                 rssItem.setTitle(content);
             } else if (localName.equalsIgnoreCase("link")) {
-                //Log.i("LINK:", content);
                 rssItem.setLink(content);
             } else if (localName.equalsIgnoreCase("description")) {
-                //Log.i("DESCRIPTION:", content);
                 rssItem.setDescription(content);
             } else if (localName.equalsIgnoreCase("pubdate")) {
-                //Log.i("PUBDATE:", content);
                 rssItem.setPubdate(content);
             }
 

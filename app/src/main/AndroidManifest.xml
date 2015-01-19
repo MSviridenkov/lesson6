@@ -11,7 +11,7 @@
         android:label="@string/app_name"
         android:theme="@style/AppTheme" >
         <activity
-            android:name="ru.ifmo.md.lesson6.MyActivity"
+            android:name=".MainActivity"
             android:label="@string/app_name" >
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
@@ -23,6 +23,17 @@
         <activity android:name="ru.ifmo.md.lesson6.WebViewActivity"
             android:label="@string/app_name">
         </activity>
+
+        <provider
+            android:name=".db.RSSContentProvider"
+            android:authorities="ru.ifmo.md.lesson8.db.WeatherContentProvider"
+            android:enabled="true" >
+        </provider>
+
+        <service
+            android:name="ru.ifmo.md.lesson6.RSSIntentService"
+            android:exported="false" >
+        </service>
     </application>
 
 </manifest>
