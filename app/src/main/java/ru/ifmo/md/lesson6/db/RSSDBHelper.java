@@ -28,11 +28,13 @@ public class RSSDBHelper extends SQLiteOpenHelper{
             + TABLE_CHANNEL + " (" +
             _ID + " INTEGER PRIMARY KEY," +
             COLUMN_NAME_CHANNEL_NAME + " TEXT," +
+            COLUMN_NAME_LINK + " TEXT," +
             COLUMN_NAME_CREATED_AT + " DATETIME" + " );";
 
     private static final String CREATE_TABLE_NEWS = "CREATE TABLE "
             + TABLE_NEWS + " (" +
             _ID + " INTEGER PRIMARY KEY," +
+            COLUMN_NAME_CHANNEL_NAME + " TEXT," +
             COLUMN_NAME_TITLE + " TEXT," +
             COLUMN_NAME_LINK + " TEXT," +
             COLUMN_NAME_DESCRIPTION + " TEXT," +

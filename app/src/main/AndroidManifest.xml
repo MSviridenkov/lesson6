@@ -26,12 +26,12 @@
 
         <provider
             android:name=".db.RSSContentProvider"
-            android:authorities="ru.ifmo.md.lesson8.db.WeatherContentProvider"
+            android:authorities="ru.ifmo.md.lesson6.db.RSSContentProvider"
             android:enabled="true" >
         </provider>
 
         <service
-            android:name="ru.ifmo.md.lesson6.RSSIntentService"
+            android:name=".ChannelIntentService"
             android:exported="false" >
         </service>
     </application>

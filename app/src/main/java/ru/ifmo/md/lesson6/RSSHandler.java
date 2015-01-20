@@ -1,7 +1,5 @@
 package ru.ifmo.md.lesson6;
 
-import android.util.Log;
-
 import org.xml.sax.Attributes;
 import org.xml.sax.SAXException;
 import org.xml.sax.helpers.DefaultHandler;
@@ -52,7 +50,6 @@ public class RSSHandler extends DefaultHandler {
     public void characters(char[] ch, int start, int length)
             throws SAXException {
         if (inItem) {
-            Log.i("SMTH:", new String(ch, start, length));
             characters.append(new String(ch, start, length));
         }
     }

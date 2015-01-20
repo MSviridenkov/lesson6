@@ -1,65 +1,145 @@
 package ru.ifmo.md.lesson6;
 
-import android.app.ListActivity;
 import android.content.Context;
 import android.content.Intent;
+import android.content.SharedPreferences;
+import android.database.Cursor;
 import android.net.ConnectivityManager;
 import android.net.NetworkInfo;
-import android.os.AsyncTask;
 import android.os.Bundle;
+import android.os.Handler;
+import android.support.v4.app.LoaderManager;
+import android.support.v4.content.CursorLoader;
+import android.support.v4.content.Loader;
+import android.support.v7.app.ActionBar;
+import android.support.v7.app.ActionBarActivity;
+import android.support.v7.widget.Toolbar;
 import android.view.KeyEvent;
+import android.view.LayoutInflater;
+import android.view.Menu;
+import android.view.MenuInflater;
+import android.view.MenuItem;
 import android.view.View;
-import android.view.inputmethod.InputMethodManager;
+import android.view.ViewGroup;
 import android.widget.AdapterView;
-import android.widget.ArrayAdapter;
+import android.widget.Button;
+import android.widget.CursorAdapter;
 import android.widget.EditText;
+import android.widget.ImageButton;
 import android.widget.ListView;
+import android.widget.Spinner;
+import android.widget.TextView;
 import android.widget.Toast;
 
-import org.xml.sax.InputSource;
-import org.xml.sax.SAXException;
-import org.xml.sax.XMLReader;
-
-import java.io.BufferedReader;
-import java.io.IOException;
-import java.io.InputStreamReader;
-import java.io.StringReader;
 import java.net.MalformedURLException;
 import java.net.URL;
-import java.net.URLConnection;
-import java.text.ParseException;
-import java.text.SimpleDateFormat;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.Comparator;
-import java.util.Date;
-import java.util.Locale;
 
-import javax.xml.parsers.ParserConfigurationException;
-import javax.xml.parsers.SAXParser;
-import javax.xml.parsers.SAXParserFactory;
+import ru.ifmo.md.lesson6.db.RSSContentProvider;
+import ru.ifmo.md.lesson6.db.RSSDBHelper;
 
 
-public class MainActivity extends ListActivity {
-    EditText input;
-    SimpleDateFormat format;
+public class MainActivity extends ActionBarActivity implements LoaderManager.LoaderCallbacks<Cursor>, AppResultsReceiver.Receiver {
+    public AppResultsReceiver mReceiver;
+
+    private String currentChannelName;
+    private String currentChannelLink;
+    private String wantAddChannelName = "";
+    private String wantAddChannelLink = "";
+    private Toolbar toolbar;
+    private ChannelCursorAdapter channelCursorAdapter;
+    private RSSCursorAdapter rssCursorAdapter;
+    private EditText nameAdd;
+    private EditText linkAdd;
+    private Button buttonAdd;
+    private SharedPreferences prefs = null;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
-        format = new SimpleDateFormat(getResources().getString(R.string.date_format), Locale.ENGLISH);
-        input = (EditText) findViewById(R.id.editText1);
+        mReceiver = new AppResultsReceiver(new Handler());
+        mReceiver.setReceiver(this);
 
-        input.setOnKeyListener(new View.OnKeyListener() {
+        prefs = getSharedPreferences("ru.ifmo.md.lesson8", MODE_PRIVATE);
+
+        toolbar = (Toolbar) findViewById(R.id.toolbar_actionbar);
+        setSupportActionBar(toolbar);
+        getSupportActionBar().setDisplayShowTitleEnabled(false);
+
+        View spinnerContainer = LayoutInflater.from(this).inflate(R.layout.toolbar_spinner, toolbar, false);
+        ActionBar.LayoutParams lp = new ActionBar.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT);
+        toolbar.addView(spinnerContainer, lp);
+
+        channelCursorAdapter = new ChannelCursorAdapter(this, null);
+        rssCursorAdapter = new RSSCursorAdapter(this, null);
+
+        final Spinner spinner = (Spinner) spinnerContainer.findViewById(R.id.toolbar_spinner);
+        spinner.setAdapter(channelCursorAdapter);
+
+        final ListView listView = (ListView) findViewById(R.id.list);
+        listView.setAdapter(rssCursorAdapter);
+
+        getSupportLoaderManager().initLoader(0, null, this);
+
+        spinner.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
+            public void onItemSelected(AdapterView<?> parent, View view,
+                                       int pos, long id) {
+                Channel channel = channelCursorAdapter.get(pos);
+                currentChannelName = channel.getChannelName();
+                currentChannelLink = channel.getLink();
+                getSupportLoaderManager().restartLoader(1, null, MainActivity.this);
+            }
+
+            public void onNothingSelected(AdapterView<?> parent) {
+            }
+
+        });
+
+        listView.setOnItemClickListener(new AdapterView.OnItemClickListener() {
+            @Override
+            public void onItemClick(AdapterView<?> adapterView, View view, int position, long id) {
+                String rssItemStringURL = rssCursorAdapter.get(position).getLink();
+                URL rssItemURL = null;
+                try {
+                    rssItemURL = new URL(rssItemStringURL);
+                } catch (MalformedURLException e) {
+                    e.printStackTrace();
+                }
+                if (rssItemStringURL != null && rssItemURL != null) {
+                    Intent intent = new Intent(MainActivity.this, WebViewActivity.class);
+                    intent.putExtra("RSSItemURL", rssItemStringURL);
+                    startActivity(intent);
+                } else {
+                    Toast.makeText(MainActivity.this, getResources().getString(R.string.rss_item_url_error), Toast.LENGTH_SHORT).show();
+                }
+            }
+        });
+
+        nameAdd = (EditText) findViewById(R.id.channel_name_add);
+        linkAdd = (EditText) findViewById(R.id.channel_link_add);
+        buttonAdd = (Button) findViewById(R.id.button_add);
+        nameAdd.setVisibility(View.GONE);
+        linkAdd.setVisibility(View.GONE);
+        buttonAdd.setVisibility(View.GONE);
+
+        linkAdd.setOnKeyListener(new View.OnKeyListener() {
             public boolean onKey(View v, int keyCode, KeyEvent event) {
                 if ((event.getAction() == KeyEvent.ACTION_DOWN) && (keyCode == KeyEvent.KEYCODE_ENTER)) {
-                    if (input.getText().toString().isEmpty()) {
-                        showToast(R.string.correct_url, Toast.LENGTH_LONG);
-                    } else {
-                        updateList(input.getText().toString());
-                    }
+                    wantAddChannelLink = linkAdd.getText().toString();
+
+                    return true;
+                }
+                return false;
+            }
+        });
+
+        nameAdd.setOnKeyListener(new View.OnKeyListener() {
+            public boolean onKey(View v, int keyCode, KeyEvent event) {
+                if ((event.getAction() == KeyEvent.ACTION_DOWN) && (keyCode == KeyEvent.KEYCODE_ENTER)) {
+                    wantAddChannelName = nameAdd.getText().toString();
+
                     return true;
                 }
                 return false;
@@ -67,163 +147,203 @@ public class MainActivity extends ListActivity {
         });
     }
 
-    public void onReadClick(View view) {
-        if (input.getText().toString().isEmpty()) {
-            showToast(R.string.correct_url, Toast.LENGTH_LONG);
-        } else {
-            updateList(input.getText().toString());
+    @Override
+    protected void onResume() {
+        super.onResume();
+        mReceiver = new AppResultsReceiver(new Handler());
+        mReceiver.setReceiver(this);
+
+        if (prefs.getBoolean("firstrun", true)) {
+            refresh(new Channel("BBC", "http://feeds.bbci.co.uk/news/rss.xml"), "add");
+
+            prefs.edit().putBoolean("firstrun", false).apply();
         }
     }
 
-    public void onBBCClick(View view) {
-        updateList(getResources().getString(R.string.bbc_feed));
+    @Override
+    public boolean onCreateOptionsMenu(Menu menu) {
+        MenuInflater inflater = getMenuInflater();
+        inflater.inflate(R.menu.menu, menu);
+        return true;
     }
 
-    public void updateList(String rssStringURL) {
-        InputMethodManager imm = (InputMethodManager) getSystemService(Context.INPUT_METHOD_SERVICE);
-        imm.hideSoftInputFromWindow(input.getWindowToken(), 0);
-
-        if(!rssStringURL.startsWith("http://")){
-            rssStringURL = "http://" + rssStringURL;
-        }
-        if (isNetworkConnected()) {
-            new DownloadAndParseXMLTask().execute(rssStringURL);
-            input.setText("");
-        } else {
-            showToast(R.string.no_internet_connection, Toast.LENGTH_LONG);
-        }
-    }
-
-    class DownloadAndParseXMLTask extends AsyncTask<String, Void, ArrayList<RSSItem>> {
-        private boolean correctURL = true;
-        private boolean canOpen = true;
-        private boolean canParse = true;
-        private boolean isSorted = true;
-
-        @Override
-        protected ArrayList<RSSItem> doInBackground(String... arg0) {
-            String rssStringURL = arg0[0];
-            ArrayList<RSSItem> rssItems = new ArrayList<RSSItem>();
-            StringBuilder content = new StringBuilder();
-            publishProgress();
-
-            try {
-                URL rssURL = new URL(rssStringURL);
-                URLConnection urlConnection = rssURL.openConnection();
-                BufferedReader bufferedReader = new BufferedReader(new InputStreamReader(urlConnection.getInputStream()));
-                String line;
-                while ((line = bufferedReader.readLine()) != null) {
-                    content.append(line + "\n");
-                }
-                bufferedReader.close();
-
-                SAXParserFactory mySAXParserFactory = SAXParserFactory.newInstance();
-                SAXParser mySAXParser = mySAXParserFactory.newSAXParser();
-                XMLReader myXMLReader = mySAXParser.getXMLReader();
-                RSSHandler myRSSHandler = new RSSHandler();
-                myXMLReader.setContentHandler(myRSSHandler);
-                InputSource myInputSource = new InputSource(new StringReader(content.toString()));
-                myXMLReader.parse(myInputSource);
-
-                rssItems = myRSSHandler.getRssItems();
-            } catch (SAXException e) {
-                canParse = false;
-                e.printStackTrace();
-                return null;
-            } catch (ParserConfigurationException e) {
-                canParse = false;
-                e.printStackTrace();
-                return null;
-            } catch (MalformedURLException e) {
-                correctURL = false;
-                e.printStackTrace();
-                return null;
-            } catch (IOException e) {
-                canOpen = false;
-                e.printStackTrace();
-                return null;
-            }
-
-            if (rssItems != null && !rssItems.isEmpty()) {
-                if (dateParse(rssItems.get(0).getPubdate()) != null) {
-                    Collections.sort(rssItems, new RSSItemComparator());
-                    Collections.reverse(rssItems);
+    @Override
+    public boolean onOptionsItemSelected(MenuItem item) {
+        switch (item.getItemId()) {
+            case R.id.action_add:
+                linkAdd.setText("");
+                linkAdd.setHint("Channel link");
+                linkAdd.setVisibility(View.VISIBLE);
+                nameAdd.setText("");
+                nameAdd.setHint("Channel name");
+                nameAdd.setVisibility(View.VISIBLE);
+                buttonAdd.setVisibility(View.VISIBLE);
+                break;
+            case R.id.action_refresh:
+                if (channelCursorAdapter.getCount() > 0) {
+                    refresh(new Channel(currentChannelName, currentChannelLink), "update");
                 } else {
-                    isSorted = false;
+                    Toast.makeText(this, getResources().getString(R.string.there_is_no_any_channel), Toast.LENGTH_SHORT).show();
                 }
-            } else {
-                canParse = false;
-            }
+                break;
 
-            return rssItems;
+            default:
+                break;
+        }
+
+        return true;
+    }
+
+    @Override
+    public Loader<Cursor> onCreateLoader(int id, Bundle arg1) {
+        CursorLoader loader;
+        if (id == 0) {
+            loader = new CursorLoader(this,
+                    RSSContentProvider.CHANNEL_CONTENT_URL, null, null, null, null);
+        } else {
+            loader = new CursorLoader(this,
+                    RSSContentProvider.NEWS_CONTENT_URL, null, RSSDBHelper.COLUMN_NAME_CHANNEL_NAME + "=?", new String[] {currentChannelName}, null);
+        }
+
+        return loader;
+    }
+
+    @Override
+    public void onLoadFinished(Loader<Cursor> arg0, Cursor cursor) {
+        if (arg0.getId() == 0) {
+            channelCursorAdapter.swapCursor(cursor);
+        } else if (arg0.getId() == 1) {
+            rssCursorAdapter.swapCursor(cursor);
+        }
+    }
+
+    @Override
+    public void onLoaderReset(Loader<Cursor> arg0) {
+        if (arg0.getId() == 0) {
+            channelCursorAdapter.swapCursor(null);
+        } else if (arg0.getId() == 2) {
+            rssCursorAdapter.swapCursor(null);
+        }
+    }
+
+    public void refresh(Channel channel, String update) {
+        Intent intent = new Intent(this, ChannelIntentService.class);
+        intent.putExtra("channel_name", channel.getChannelName());
+        intent.putExtra("link", channel.getLink());
+        intent.putExtra("action", update);
+        intent.putExtra("receiver", mReceiver);
+        this.startService(intent);
+    }
+
+    class ChannelCursorAdapter extends CursorAdapter {
+        public ChannelCursorAdapter(Context context, Cursor cursor) {
+            super(context, cursor, 0);
+        }
+
+        public class ViewHolder {
+            public ImageButton button;
         }
 
         @Override
-        protected void onProgressUpdate(Void... arg0) {
-            showToast(R.string.waiting, Toast.LENGTH_SHORT);
+        public View newView(Context context, Cursor cursor, ViewGroup parent) {
+            View view = LayoutInflater.from(context).inflate(R.layout.toolbar_spinner_item_actionbar, parent, false);
+
+            return view;
         }
 
         @Override
-        protected void onPostExecute(ArrayList<RSSItem> result) {
-            final ArrayList<RSSItem> rssItems = result;
-            if (!correctURL) {
-                showToast(R.string.correct_url, Toast.LENGTH_LONG);
-            } else if (!canOpen) {
-                showToast(R.string.cannot_open, Toast.LENGTH_LONG);
-            } else if (!canParse) {
-                showToast(R.string.cannot_parse, Toast.LENGTH_LONG);
-            } else {
-                if (!isSorted) {
-                    showToast(R.string.cannot_parse_date, Toast.LENGTH_LONG);
-                }
-                ArrayAdapter<RSSItem> adapter = new RSSArrayAdapter(getApplicationContext(), rssItems);
-                setListAdapter(adapter);
-                final ListView myListView = getListView();
-                myListView.setOnItemClickListener(new AdapterView.OnItemClickListener() {
-                    @Override
-                    public void onItemClick(AdapterView<?> adapterView, View view, int position, long id) {
-                        String rssItemStringURL = rssItems.get(position).getLink();
-                        URL rssItemURL = null;
-                        try {
-                            rssItemURL = new URL(rssItemStringURL);
-                        } catch (MalformedURLException e) {
-                            e.printStackTrace();
-                        }
-                        if (rssItemStringURL != null && rssItemURL != null) {
-                            Intent intent = new Intent(MainActivity.this, WebViewActivity.class);
-                            intent.putExtra("RSSItemURL", rssItemStringURL);
-                            startActivity(intent);
-                        } else {
-                            showToast(R.string.rss_item_url_error, Toast.LENGTH_LONG);
-                        }
+        public void bindView(View view, Context context, Cursor cursor) {
+            final String channelNameStr = cursor.getString(cursor.getColumnIndex("channel_name"));
+
+            TextView channelName = (TextView) view.findViewById(R.id.text1);
+            channelName.setText(channelNameStr);
+
+            ViewHolder holder = (ViewHolder) view.getTag();
+
+            if (holder != null) {
+                holder.button.setOnClickListener(new View.OnClickListener() {
+
+                    public void onClick(View arg0) {
+                        MainActivity.this.getContentResolver().delete(RSSContentProvider.CHANNEL_CONTENT_URL, RSSDBHelper.COLUMN_NAME_CHANNEL_NAME + "=?", new String[]{channelNameStr});
+                        MainActivity.this.getContentResolver().delete(RSSContentProvider.NEWS_CONTENT_URL, RSSDBHelper.COLUMN_NAME_CHANNEL_NAME + "=?", new String[]{channelNameStr});
+                        notifyDataSetChanged();
+                        MainActivity.this.getSupportLoaderManager().restartLoader(0, null, MainActivity.this);
+                        MainActivity.this.getSupportLoaderManager().restartLoader(1, null, MainActivity.this);
+                        MainActivity.this.getSupportLoaderManager().restartLoader(2, null, MainActivity.this);
                     }
                 });
             }
         }
-    }
 
-    class RSSItemComparator implements Comparator<RSSItem> {
-        public int compare(RSSItem firstItem, RSSItem secondItem) {
-            Date firstDate = dateParse(firstItem.getPubdate());
-            Date secondDate = dateParse(secondItem.getPubdate());
+        @Override
+        public View newDropDownView(Context context, Cursor cursor, ViewGroup parent) {
+            ViewHolder holder = new ViewHolder();
+            View view = LayoutInflater.from(context).inflate(R.layout.toolbar_spinner_item_dropdown, parent, false);
+            holder.button = (ImageButton) view.findViewById(R.id.button_delete);
+            view.setTag(holder);
 
-            return firstDate.compareTo(secondDate);
+            return view;
+        }
+
+        public Channel get(int position) {
+            Cursor cursor = getCursor();
+            Channel channel = new Channel();
+
+            if(cursor.moveToPosition(position)) {
+                channel.setChannelName(cursor.getString(cursor.getColumnIndex("channel_name")));
+                channel.setLink(cursor.getString(cursor.getColumnIndex("link")));
+            }
+
+            return channel;
         }
     }
 
-    public Date dateParse(String str) {
-        try {
-            return format.parse(str);
-        } catch (ParseException e) {
-            e.printStackTrace();
-        }
+    @Override
+    public void onReceiveResult(int resultCode, Bundle data) {
+        switch (resultCode) {
+            case AppResultsReceiver.STATUS_RUNNING:
+                Toast.makeText(this, getResources().getString(R.string.waiting), Toast.LENGTH_SHORT).show();
+            case AppResultsReceiver.STATUS_REFRESHED:
+                getSupportLoaderManager().restartLoader(0, null, this);
+                getSupportLoaderManager().restartLoader(1, null, this);
+                Toast.makeText(this, getResources().getString(R.string.current_channel_refreshed), Toast.LENGTH_SHORT).show();
+                break;
+            case AppResultsReceiver.STATUS_ADDED:
+                Toast.makeText(this, getResources().getString(R.string.channel_added), Toast.LENGTH_SHORT).show();
+                getSupportLoaderManager().restartLoader(0, null, this);
+                break;
+            case AppResultsReceiver.STATUS_INTERNET_ERROR:
+                Toast.makeText(this, getResources().getString(R.string.internet_problem), Toast.LENGTH_SHORT).show();
+                break;
+            case AppResultsReceiver.STATUS_PARSE_ERROR:
+                Toast.makeText(this, getResources().getString(R.string.parse_problem), Toast.LENGTH_SHORT).show();
+                break;
+            case AppResultsReceiver.STATUS_ALREADY_ADDED:
+                Toast.makeText(this, getResources().getString(R.string.already_added), Toast.LENGTH_SHORT).show();
+                break;
+            case AppResultsReceiver.STATUS_INCORRECT_URL:
+                Toast.makeText(this, getResources().getString(R.string.incorrect_url), Toast.LENGTH_SHORT).show();
+                break;
 
-        return null;
+            default:
+                break;
+        }
     }
 
-    public void showToast(int message, int time) {
-        Toast toast = Toast.makeText(getApplicationContext(), message, time);
-        toast.show();
+    public void onClick(View view) {
+        wantAddChannelLink = linkAdd.getText().toString();
+        wantAddChannelName = nameAdd.getText().toString();
+        linkAdd.setVisibility(View.GONE);
+        nameAdd.setVisibility(View.GONE);
+        buttonAdd.setVisibility(View.GONE);
+        if (!wantAddChannelName.equals("")) {
+            if(!wantAddChannelLink.startsWith("http://")) {
+                wantAddChannelLink = "http://" + wantAddChannelLink;
+            }
+            refresh(new Channel(wantAddChannelName, wantAddChannelLink), "add");
+        } else {
+            Toast.makeText(this, getResources().getString(R.string.incorrect_channel_name), Toast.LENGTH_SHORT).show();
+        }
     }
 
     private boolean isNetworkConnected() {

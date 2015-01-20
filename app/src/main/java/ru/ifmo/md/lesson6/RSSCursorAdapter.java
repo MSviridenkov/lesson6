@@ -5,7 +5,6 @@ import android.database.Cursor;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
-import android.widget.ArrayAdapter;
 import android.widget.CursorAdapter;
 import android.widget.TextView;
 
@@ -31,11 +30,11 @@ public class RSSCursorAdapter extends CursorAdapter {
         TextView title = (TextView) view.findViewById(R.id.title);
         title.setText(cursor.getString(cursor.getColumnIndex("title")));
 
-        TextView discription = (TextView) view.findViewById(R.id.description);
-        title.setText(cursor.getString(cursor.getColumnIndex("title")));
+        TextView description = (TextView) view.findViewById(R.id.description);
+        description.setText(cursor.getString(cursor.getColumnIndex("description")));
 
         TextView pubDate = (TextView) view.findViewById(R.id.pubdate);
-        title.setText(cursor.getString(cursor.getColumnIndex("title")));
+        pubDate.setText(cursor.getString(cursor.getColumnIndex("pubdate")));
     }
 
     public RSSItem get(int position) {
